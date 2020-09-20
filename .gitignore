@@ -1,0 +1,15 @@
+.gradle
+/local.properties
+/.idea/*
+!/.idea/copyright
+!/.idea/dictionaries
+!/.idea/runConfigurations
+!/.idea/scopes
+.DS_Store
+build
+/captures
+*.iml
+scope_settings.xml
+/projectFilesBackup
+.externalNativeBuild
+.cxx

@@ -1,0 +1,9 @@
+<component name="CopyrightManager">
+  <settings default="MPL-2.0">
+    <module2copyright>
+      <element module="Gradle Scripts" copyright="APACHE-2.0" />
+      <element module="All" copyright="MPL-2.0" />
+    </module2copyright>
+    <LanguageOptions name="__TEMPLATE__" />
+  </settings>
+</component>
