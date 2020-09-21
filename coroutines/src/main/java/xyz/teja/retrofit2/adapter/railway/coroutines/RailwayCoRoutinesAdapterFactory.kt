@@ -41,12 +41,9 @@ class RailwayCoRoutinesAdapterFactory(private val convertToErrorBodyWhenSuccessf
         val returnType = getParameterUpperBound(0, callReturnType)
 
         val rawType = getRawType(returnType)
-        if (rawType !== NetworkResponse::class.java) {
+        // NetworkResponse must be parameterized as NetworkResponse<SuccessBody, ErrorBody> (checked by compiler by default)
+        if (rawType !== NetworkResponse::class.java || returnType !is ParameterizedType) {
             return null
-        } else if (returnType !is ParameterizedType) {
-            throw IllegalStateException(
-                "NetworkResponse must be parameterized as NetworkResponse<SuccessBody, ErrorBody>"
-            )
         }
 
         val successBodyType = getParameterUpperBound(0, returnType)

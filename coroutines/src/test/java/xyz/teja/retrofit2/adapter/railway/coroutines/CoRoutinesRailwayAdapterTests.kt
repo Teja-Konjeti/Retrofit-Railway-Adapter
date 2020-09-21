@@ -14,15 +14,19 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.fail
+import retrofit2.Call
+import retrofit2.HttpException
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.GET
 import retrofit2.mock.MockRetrofit
 import retrofit2.mock.NetworkBehavior
 import xyz.teja.retrofit2.adapter.railway.NetworkResponse
-import java.io.IOException
+import java.net.ProtocolException
 import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 
@@ -35,6 +39,15 @@ data class ErrorBody(val error: String)
 interface Service {
     @GET("/")
     suspend fun getBody(): NetworkResponse<SuccessBody, ErrorBody>
+
+    @GET("/")
+    fun nothing1(): Call<String>
+
+    @GET("/")
+    suspend fun nothing2()
+
+    @GET("/")
+    fun nothing3(): Any
 }
 
 @ExperimentalSerializationApi
@@ -51,96 +64,232 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
     val testService = retrofit
         .create(Service::class.java)
 
-    "Should parse into success body" - {
-        server.enqueue(MockResponse().setBody("{ \"success\": \"test\" }"))
+    "Should parse into success" - {
+        "when a success response is received" - {
+            server.enqueue(MockResponse().setBody("{ \"success\": \"test\" }"))
 
-        val response = testService.getBody()
-        if (response is NetworkResponse.Success) {
-            response.body?.success shouldBe "test"
-        } else {
-            print(response)
-            fail("Not a success response")
+            val response = testService.getBody()
+            if (response is NetworkResponse.Success) {
+                response.body?.success shouldBe "test"
+            } else {
+                print(response)
+                fail("Not a success response")
+            }
+        }
+
+        "with null body when unable to parse into either success or error and request is successful" - {
+            server.enqueue(MockResponse().setBody("{ \"abc\": \"test\" }"))
+
+            val response = testService.getBody()
+            if (response is NetworkResponse.Success) {
+                response.body shouldBe null
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
         }
     }
 
-    "Should parse into error body even when request is successful and no success response is received" - {
-        server.enqueue(MockResponse().setBody("{ \"error\": \"test\" }"))
+    "Should parse into server error" - {
+        "when request is successful but could not parse to success response" - {
+            server.enqueue(MockResponse().setBody("{ \"error\": \"test\" }"))
 
-        val response = testService.getBody()
-        if (response is NetworkResponse.ServerError) {
-            response.body?.error shouldBe "test"
-        } else {
-            print(response)
-            fail("Not a error response")
+            val response = testService.getBody()
+            if (response is NetworkResponse.ServerError) {
+                response.body?.error shouldBe "test"
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
         }
-    }
 
-    "Should parse into success with null body when unable to parse into either success or error and request is successful" - {
-        server.enqueue(MockResponse().setBody("{ \"abc\": \"test\" }"))
+        "when request is not successful (response code > 100)" - {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(401)
+                    .setBody("{ \"error\": \"test\" }")
+            )
 
-        val response = testService.getBody()
-        if (response is NetworkResponse.Success) {
-            response.body shouldBe null
-        } else {
-            print(response)
-            fail("Not a error response")
+            val response = testService.getBody()
+            if (response is NetworkResponse.ServerError) {
+                response.body?.error shouldBe "test"
+                response.code shouldBe 401
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
         }
-    }
 
-    "Should parse into error body when request is not successful" - {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(401)
-                .setBody("{ \"error\": \"test\" }")
-        )
+        "with null body when request is not successful" - {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(401)
+                    .setBody("{ \"abc\": \"test\" }")
+            )
 
-        val response = testService.getBody()
-        if (response is NetworkResponse.ServerError) {
-            response.body?.error shouldBe "test"
-            response.code shouldBe 401
-        } else {
-            print(response)
-            fail("Not a error response")
+            val response = testService.getBody()
+            if (response is NetworkResponse.ServerError) {
+                response.body?.error shouldBe null
+                response.code shouldBe 401
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
         }
-    }
 
-    "Should parse into error with null body when request is not successful" - {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(401)
-                .setBody("{ \"abc\": \"test\" }")
-        )
+        "with null body when request is not successful and empty body" - {
+            server.enqueue(MockResponse().setResponseCode(401))
 
-        val response = testService.getBody()
-        if (response is NetworkResponse.ServerError) {
-            response.body?.error shouldBe null
-            response.code shouldBe 401
-        } else {
-            print(response)
-            fail("Not a error response")
+            val response = testService.getBody()
+            if (response is NetworkResponse.ServerError) {
+                response.body?.error shouldBe null
+                response.code shouldBe 401
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
+        }
+
+        "with an error body when an HttpException is thrown" - {
+            val exception = HttpException(
+                Response.error<String>(
+                    401,
+                    "{ \"error\": \"test\" }".toResponseBody()
+                )
+            )
+
+            val networkBehavior = NetworkBehavior.create()
+
+            networkBehavior.setFailureException(exception)
+            networkBehavior.setDelay(0, TimeUnit.SECONDS)
+            networkBehavior.setFailurePercent(100)
+
+            val service = MockRetrofit
+                .Builder(retrofit)
+                .networkBehavior(networkBehavior)
+                .build()
+                .create(Service::class.java)
+
+            val response = service.returningResponse(null).getBody()
+
+            if (response is NetworkResponse.ServerError) {
+                response.body?.error shouldBe "test"
+                response.code shouldBe 401
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
         }
     }
 
     "Should parse into network error when request is not successful" - {
-        val networkBehavior = NetworkBehavior.create()
+        "with response code < 100" - {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(0)
+                    .setBody("{ \"abc\": \"test\" }")
+            )
 
-        networkBehavior.setFailureException(SocketTimeoutException())
-        networkBehavior.setDelay(0, TimeUnit.SECONDS)
-        networkBehavior.setFailurePercent(100)
+            val response = testService.getBody()
+            if (response is NetworkResponse.NetworkError) {
+                assert(response.error is ProtocolException)
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
+        }
 
-        val service = MockRetrofit
-            .Builder(retrofit)
-            .networkBehavior(networkBehavior)
-            .build()
-            .create(Service::class.java)
+        "with response code > 599" - {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(600)
+                    .setBody("{ \"abc\": \"test\" }")
+            )
 
-        val response = service.returningResponse(null).getBody()
+            val response = testService.getBody()
+            if (response is NetworkResponse.NetworkError) {
+                assert(response.error is ProtocolException)
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
+        }
 
-        if (response is NetworkResponse.NetworkError) {
-            assert(response.error is IOException)
-        } else {
-            print(response)
-            fail("Not a error response")
+        "with response code > 599 and an empty response" - {
+            server.enqueue(MockResponse().setResponseCode(600))
+
+            val response = testService.getBody()
+            if (response is NetworkResponse.NetworkError) {
+                assert(response.error is ProtocolException)
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
+        }
+
+        "with a socket timeout exception" - {
+            val exception = SocketTimeoutException()
+            val networkBehavior = NetworkBehavior.create()
+
+            networkBehavior.setFailureException(exception)
+            networkBehavior.setDelay(0, TimeUnit.SECONDS)
+            networkBehavior.setFailurePercent(100)
+
+            val service = MockRetrofit
+                .Builder(retrofit)
+                .networkBehavior(networkBehavior)
+                .build()
+                .create(Service::class.java)
+
+            val response = service.returningResponse(null).getBody()
+
+            if (response is NetworkResponse.NetworkError) {
+                response.error shouldBe exception
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
+        }
+    }
+
+    "Should not break existing functionality" - {
+        "with \"Call\" return type" - {
+            server.enqueue(MockResponse().setBody("\"\""))
+            testService.nothing1().execute().body() shouldBe ""
+        }
+
+        "with no return type" - {
+            server.enqueue(MockResponse())
+            testService.nothing2()
+        }
+
+        "with non \"Call\" return type" - {
+            try {
+                testService.nothing3()
+                fail("nothing2 should always throw")
+            } catch (_: Exception) {
+            }
+        }
+
+        "with a non IOException" - {
+            val exception = NumberFormatException()
+            val networkBehavior = NetworkBehavior.create()
+
+            networkBehavior.setFailureException(exception)
+            networkBehavior.setDelay(0, TimeUnit.SECONDS)
+            networkBehavior.setFailurePercent(100)
+
+            val service = MockRetrofit
+                .Builder(retrofit)
+                .networkBehavior(networkBehavior)
+                .build()
+                .create(Service::class.java)
+
+            try {
+                service.returningResponse(null).getBody()
+                fail("getBody should always throw")
+            } catch (_: Exception) {
+            }
         }
     }
 })

@@ -15,6 +15,7 @@ import retrofit2.*
 import xyz.teja.retrofit2.adapter.railway.NetworkResponse
 import java.io.IOException
 import java.lang.reflect.Type
+import java.net.ProtocolException
 import java.util.*
 import kotlin.jvm.Throws
 
@@ -48,11 +49,19 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                         call: Call<ResponseBody>,
                         response: Response<ResponseBody>
                     ) {
-                        callback.onResponse(this@CallbackCall, success(response))
+                        try {
+                            callback.onResponse(this@CallbackCall, success(response))
+                        } catch (throwable: Throwable) {
+                            callback.onFailure(this@CallbackCall, throwable)
+                        }
                     }
 
                     override fun onFailure(call: Call<ResponseBody>, throwable: Throwable) {
-                        callback.onResponse(this@CallbackCall, failure(throwable))
+                        try {
+                            callback.onResponse(this@CallbackCall, failure(throwable))
+                        } catch (throwable: Throwable) {
+                            callback.onFailure(this@CallbackCall, throwable)
+                        }
                     }
                 })
         }
@@ -119,6 +128,7 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                 if (response != null) {
                     errorBodyToNetworkResponse(response)
                 } else {
+                    // This will never happen as response is almost never null
                     NetworkResponse.NetworkError(throwable)
                 }
             } else if (throwable is IOException) {
@@ -141,17 +151,19 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                         response.code()
                     )
                 } catch (e: Exception) {
-                    return if (response.code() < 100) {
+                    // < 100 is handled by Retrofit
+                    return if (response.code() > 599) {
                         NetworkResponse.NetworkError(
-                            IOException("Couldn't deserialize error body: ${error.string()}", e)
+                            ProtocolException("Also, couldn't deserialize error body: ${error.string()}")
                         )
                     } else {
                         NetworkResponse.ServerError(null, response.code())
                     }
                 }
             } else {
-                return if (response.code() < 100) {
-                    NetworkResponse.NetworkError(IOException("Empty Error Body"))
+                // < 100 is handled by Retrofit
+                return if (response.code() > 599) {
+                    NetworkResponse.NetworkError(ProtocolException("Also, empty error body"))
                 } else {
                     NetworkResponse.ServerError(null, response.code())
                 }
