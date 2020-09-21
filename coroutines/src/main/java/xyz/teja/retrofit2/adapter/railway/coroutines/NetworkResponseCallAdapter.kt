@@ -9,52 +9,58 @@ package xyz.teja.retrofit2.adapter.railway.coroutines
 
 import okhttp3.Request
 import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Timeout
 import retrofit2.*
 import xyz.teja.retrofit2.adapter.railway.NetworkResponse
 import java.io.IOException
 import java.lang.reflect.Type
 import java.util.*
+import kotlin.jvm.Throws
 
 internal class NetworkResponseCallAdapter<T : Any, U : Any>(
-    private val successBodyType: Type,
-    private val delegateAdapter: CallAdapter<T, Call<T>>,
+    private val delegateAdapter: CallAdapter<ResponseBody, Call<ResponseBody>>,
+    private val successConverter: Converter<ResponseBody, T>,
     private val errorConverter: Converter<ResponseBody, U>,
     private val convertToErrorBodyWhenSuccessfulAndCannotParse: Boolean,
-) : CallAdapter<T, Call<NetworkResponse<T, U>>> {
-    override fun adapt(call: Call<T>): Call<NetworkResponse<T, U>> =
+) : CallAdapter<ResponseBody, Call<NetworkResponse<T, U>>> {
+    override fun adapt(call: Call<ResponseBody>): Call<NetworkResponse<T, U>> =
         CallbackCall(
             convertToErrorBodyWhenSuccessfulAndCannotParse,
             delegateAdapter.adapt(call),
+            successConverter,
             errorConverter,
         )
 
-    override fun responseType(): Type = successBodyType
+    override fun responseType(): Type = ResponseBody::class.java
 
     internal class CallbackCall<T : Any, U : Any>(
         private val convertToErrorBodyWhenSuccessfulAndCannotParse: Boolean,
-        private val delegate: Call<T>,
+        private val delegate: Call<ResponseBody>,
+        private val successConverter: Converter<ResponseBody, T>,
         private val errorConverter: Converter<ResponseBody, U>,
     ) : Call<NetworkResponse<T, U>> {
         override fun enqueue(callback: Callback<NetworkResponse<T, U>>) {
             Objects.requireNonNull(callback, "callback == null")
             delegate.enqueue(
-                object : Callback<T> {
-                    override fun onResponse(call: Call<T>, response: Response<T>) {
+                object : Callback<ResponseBody> {
+                    override fun onResponse(
+                        call: Call<ResponseBody>,
+                        response: Response<ResponseBody>
+                    ) {
                         callback.onResponse(this@CallbackCall, success(response))
                     }
 
-                    override fun onFailure(call: Call<T>, throwable: Throwable) {
+                    override fun onFailure(call: Call<ResponseBody>, throwable: Throwable) {
                         callback.onResponse(this@CallbackCall, failure(throwable))
                     }
                 })
         }
 
-        private fun success(response: Response<T>): Response<NetworkResponse<T, U>> {
+        private fun success(response: Response<ResponseBody>): Response<NetworkResponse<T, U>> {
             return wrapNetworkResponseInResponse(
                 convertResponseToNetworkResponse(
                     response,
-                    errorConverter,
                     convertToErrorBodyWhenSuccessfulAndCannotParse
                 ),
                 response
@@ -63,57 +69,69 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
 
         private fun failure(throwable: Throwable): Response<NetworkResponse<T, U>> {
             return wrapNetworkResponseInResponse(
-                throwableToNetworkResponse(errorConverter, throwable),
+                throwableToNetworkResponse(throwable),
                 null
             )
         }
 
         private fun convertResponseToNetworkResponse(
-            response: Response<T>,
-            errorConverter: Converter<ResponseBody, U>,
+            response: Response<ResponseBody>,
             convertToErrorBodyWhenSuccessfulAndCannotParse: Boolean,
         ): NetworkResponse<T, U> {
-            val body = response.body()
-            return when {
-                body != null -> NetworkResponse.Success(body)
+            when {
                 response.isSuccessful -> {
-                    val rawSuccessBody = response.raw().body
-                    if (convertToErrorBodyWhenSuccessfulAndCannotParse && rawSuccessBody != null) {
-                        try {
-                            NetworkResponse.ServerError(
-                                errorConverter.convert(rawSuccessBody),
-                                response.code()
-                            )
-                        } catch (e: Exception) {
-                            NetworkResponse.Success(null)
+                    val responseBody = response.body()
+                    val body = responseBody?.string()
+                    responseBody?.close()
+
+                    if (body != null) {
+                        val success = try {
+                            successConverter.convert(body.toResponseBody())
+                        } catch (exception: Exception) {
+                            null
                         }
-                    } else {
-                        NetworkResponse.Success(null)
+
+                        if (success != null || !convertToErrorBodyWhenSuccessfulAndCannotParse) {
+                            return NetworkResponse.Success(success)
+                        } else {
+                            try {
+                                val error = errorConverter.convert(body.toResponseBody())
+                                if (error != null) {
+                                    return NetworkResponse.ServerError(error, response.code())
+                                }
+                            } catch (e: Exception) {
+                                print(e)
+                            }
+                        }
                     }
+
+                    return NetworkResponse.Success(null)
                 }
-                else -> errorBodyToNetworkResponse(response, errorConverter)
+                else -> return errorBodyToNetworkResponse(response)
             }
         }
 
         private fun throwableToNetworkResponse(
-            errorConverter: Converter<ResponseBody, U>,
             throwable: Throwable,
         ): NetworkResponse<T, U> {
-            if (throwable is HttpException) {
+            return if (throwable is HttpException) {
                 val response = throwable.response()
                 if (response != null) {
-                    return errorBodyToNetworkResponse(response, errorConverter)
+                    errorBodyToNetworkResponse(response)
+                } else {
+                    NetworkResponse.NetworkError(throwable)
                 }
+            } else if (throwable is IOException) {
+                NetworkResponse.NetworkError(throwable)
+            } else {
+                throw throwable
             }
-
-            return NetworkResponse.NetworkError(throwable)
         }
 
         /// Will try to parse to Error Body and return a Server Error if parsing is successful
         /// If parsing fails, returns a Server Error for codes > 100 and Network Error otherwise
         private fun errorBodyToNetworkResponse(
             response: Response<*>,
-            errorConverter: Converter<ResponseBody, U>,
         ): NetworkResponse<T, U> {
             val error = response.errorBody()
             if (error != null && error.contentLength() != 0L) {
@@ -142,7 +160,7 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
 
         private fun wrapNetworkResponseInResponse(
             parsedResponse: NetworkResponse<T, U>,
-            retrofitResponse: Response<T>?
+            retrofitResponse: Response<ResponseBody>?
         ): Response<NetworkResponse<T, U>> =
             if (retrofitResponse?.isSuccessful == true) {
                 Response.success(
@@ -176,6 +194,7 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
         override fun clone(): Call<NetworkResponse<T, U>> = CallbackCall(
             convertToErrorBodyWhenSuccessfulAndCannotParse,
             delegate.clone(),
+            successConverter,
             errorConverter
         )
 

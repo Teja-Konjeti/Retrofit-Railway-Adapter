@@ -7,6 +7,7 @@
  */
 package xyz.teja.retrofit2.adapter.railway.coroutines
 
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.CallAdapter
 import retrofit2.Retrofit
@@ -54,11 +55,17 @@ class RailwayCoRoutinesAdapterFactory(private val convertToErrorBodyWhenSuccessf
         val delegateType = Types.newParameterizedTypeWithOwner(
             null,
             Call::class.java,
-            successBodyType
+            ResponseBody::class.java
         )
         val delegateAdapter = retrofit.nextCallAdapter(
             this,
             delegateType,
+            annotations
+        )
+
+        val successBodyConverter = retrofit.nextResponseBodyConverter<Any>(
+            null,
+            successBodyType,
             annotations
         )
 
@@ -70,8 +77,8 @@ class RailwayCoRoutinesAdapterFactory(private val convertToErrorBodyWhenSuccessf
 
         @Suppress("UNCHECKED_CAST") // Type of delegateAdapter is not known at compile time.
         return NetworkResponseCallAdapter(
-            successBodyType,
-            delegateAdapter as CallAdapter<Any, Call<Any>>,
+            delegateAdapter as CallAdapter<ResponseBody, Call<ResponseBody>>,
+            successBodyConverter,
             errorBodyConverter,
             convertToErrorBodyWhenSuccessfulAndCannotParse
         )
