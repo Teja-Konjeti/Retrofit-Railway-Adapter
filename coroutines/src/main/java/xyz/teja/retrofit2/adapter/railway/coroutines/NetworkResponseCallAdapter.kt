@@ -149,7 +149,9 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
             response: Response<*>,
         ): NetworkResponse<T, U> {
             val error = response.errorBody()
-            val errorBody = response.errorBody()?.string() ?: ""
+            val errorBody = error?.string() ?: ""
+            error?.close()
+
             if (error != null && error.contentLength() != 0L) {
                 return try {
                     NetworkResponse.ServerError(
