@@ -7,6 +7,8 @@
  */
 package xyz.teja.retrofit2.adapter.railway
 
+import okhttp3.Response
+
 /**
  * Represents the result of making a network request.
  *
@@ -22,8 +24,12 @@ sealed class NetworkResponse<out T : Any, out U : Any> {
 
     /**
      * A request that resulted in a response of type U.
+     * @param body parsed error body
+     * @param response raw response received
+     * @param rawBody this is provided as the body of the raw response is already consumed
      */
-    data class ServerError<U : Any>(val body: U?, val code: Int) : NetworkResponse<Nothing, U>()
+    data class ServerError<U : Any>(val body: U?, val response: Response, val rawBody: String) :
+        NetworkResponse<Nothing, U>()
 
     /**
      * A request that didn't result in a response.

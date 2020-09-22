@@ -106,7 +106,11 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                                 try {
                                     val error = errorConverter.convert(body.toResponseBody())
                                     if (error != null) {
-                                        return NetworkResponse.ServerError(error, response.code())
+                                        return NetworkResponse.ServerError(
+                                            error,
+                                            response.raw(),
+                                            body
+                                        )
                                     }
                                 } catch (e: Exception) {
                                     print(e)
@@ -115,7 +119,7 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                         }
                     }
 
-                    return NetworkResponse.ServerError(null, response.code())
+                    return NetworkResponse.ServerError(null, response.raw(), body ?: "")
                 }
                 else -> return errorBodyToNetworkResponse(response)
             }
@@ -145,11 +149,13 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
             response: Response<*>,
         ): NetworkResponse<T, U> {
             val error = response.errorBody()
+            val errorBody = response.errorBody()?.string() ?: ""
             if (error != null && error.contentLength() != 0L) {
                 return try {
                     NetworkResponse.ServerError(
-                        errorConverter.convert(error),
-                        response.code()
+                        errorConverter.convert((errorBody).toResponseBody()),
+                        response.raw(),
+                        errorBody
                     )
                 } catch (e: Exception) {
                     // < 100 is handled by Retrofit
@@ -158,7 +164,7 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                             ProtocolException("Also, couldn't deserialize error body: ${error.string()}")
                         )
                     } else {
-                        NetworkResponse.ServerError(null, response.code())
+                        NetworkResponse.ServerError(null, response.raw(), errorBody)
                     }
                 }
             } else {
@@ -166,7 +172,7 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                 return if (response.code() > 599) {
                     NetworkResponse.NetworkError(ProtocolException("Also, empty error body"))
                 } else {
-                    NetworkResponse.ServerError(null, response.code())
+                    NetworkResponse.ServerError(null, response.raw(), errorBody)
                 }
             }
         }

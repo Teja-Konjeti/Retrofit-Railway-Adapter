@@ -85,6 +85,7 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
             val response = testService.getBody()
             if (response is NetworkResponse.ServerError) {
                 response.body?.error shouldBe "test"
+                response.rawBody shouldBe "{ \"error\": \"test\" }"
             } else {
                 print(response)
                 fail("Not a error response")
@@ -101,7 +102,8 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
             val response = testService.getBody()
             if (response is NetworkResponse.ServerError) {
                 response.body?.error shouldBe "test"
-                response.code shouldBe 401
+                response.response.code shouldBe 401
+                response.rawBody shouldBe "{ \"error\": \"test\" }"
             } else {
                 print(response)
                 fail("Not a error response")
@@ -114,7 +116,8 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
             val response = testService.getBody()
             if (response is NetworkResponse.ServerError) {
                 response.body shouldBe null
-                response.code shouldBe 200
+                response.response.code shouldBe 200
+                response.rawBody shouldBe "{ \"abc\": \"test\" }"
             } else {
                 print(response)
                 fail("Not a error response")
@@ -131,7 +134,8 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
             val response = testService.getBody()
             if (response is NetworkResponse.ServerError) {
                 response.body?.error shouldBe null
-                response.code shouldBe 401
+                response.response.code shouldBe 401
+                response.rawBody shouldBe "{ \"abc\": \"test\" }"
             } else {
                 print(response)
                 fail("Not a error response")
@@ -144,7 +148,7 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
             val response = testService.getBody()
             if (response is NetworkResponse.ServerError) {
                 response.body?.error shouldBe null
-                response.code shouldBe 401
+                response.response.code shouldBe 401
             } else {
                 print(response)
                 fail("Not a error response")
@@ -175,7 +179,8 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
 
             if (response is NetworkResponse.ServerError) {
                 response.body?.error shouldBe "test"
-                response.code shouldBe 401
+                response.response.code shouldBe 401
+                response.rawBody shouldBe "{ \"error\": \"test\" }"
             } else {
                 print(response)
                 fail("Not a error response")
