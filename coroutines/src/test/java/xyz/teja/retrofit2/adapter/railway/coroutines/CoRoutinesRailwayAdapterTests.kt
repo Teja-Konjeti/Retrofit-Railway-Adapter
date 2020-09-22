@@ -7,13 +7,10 @@
  */
 package xyz.teja.retrofit2.adapter.railway.coroutines
 
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -22,6 +19,7 @@ import retrofit2.Call
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.Retrofit
+import retrofit2.converter.jackson.JacksonConverterFactory
 import retrofit2.http.GET
 import retrofit2.mock.MockRetrofit
 import retrofit2.mock.NetworkBehavior
@@ -30,10 +28,8 @@ import java.net.ProtocolException
 import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 
-@Serializable
 data class SuccessBody(val success: String)
 
-@Serializable
 data class ErrorBody(val error: String)
 
 interface Service {
@@ -50,16 +46,19 @@ interface Service {
     fun nothing3(): Any
 }
 
-@ExperimentalSerializationApi
 class CoRoutinesRailwayAdapterTests : FreeSpec({
     val server = MockWebServer()
     val retrofit = Retrofit.Builder()
         .baseUrl(server.url("/"))
         .addCallAdapterFactory(RailwayCoRoutinesAdapterFactory())
-        .addConverterFactory(Json {
-            coerceInputValues = true
-            ignoreUnknownKeys = true
-        }.asConverterFactory("application/json".toMediaType()))
+        .addConverterFactory(
+            JacksonConverterFactory.create(
+                JsonMapper
+                    .builder()
+                    .addModules(KotlinModule(nullIsSameAsDefault = false))
+                    .build()
+            )
+        )
         .build()
     val testService = retrofit
         .create(Service::class.java)
