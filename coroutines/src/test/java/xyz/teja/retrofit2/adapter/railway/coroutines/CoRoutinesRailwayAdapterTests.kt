@@ -70,22 +70,10 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
 
             val response = testService.getBody()
             if (response is NetworkResponse.Success) {
-                response.body?.success shouldBe "test"
+                response.body.success shouldBe "test"
             } else {
                 print(response)
                 fail("Not a success response")
-            }
-        }
-
-        "with null body when unable to parse into either success or error and request is successful" - {
-            server.enqueue(MockResponse().setBody("{ \"abc\": \"test\" }"))
-
-            val response = testService.getBody()
-            if (response is NetworkResponse.Success) {
-                response.body shouldBe null
-            } else {
-                print(response)
-                fail("Not a error response")
             }
         }
     }
@@ -120,7 +108,20 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
             }
         }
 
-        "with null body when request is not successful" - {
+        "with null body when unable to parse into either success or error and request is successful" - {
+            server.enqueue(MockResponse().setBody("{ \"abc\": \"test\" }"))
+
+            val response = testService.getBody()
+            if (response is NetworkResponse.ServerError) {
+                response.body shouldBe null
+                response.code shouldBe 200
+            } else {
+                print(response)
+                fail("Not a error response")
+            }
+        }
+
+        "with null body when request is not successful and error body cannot be parsed" - {
             server.enqueue(
                 MockResponse()
                     .setResponseCode(401)

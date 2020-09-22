@@ -17,7 +17,6 @@ import java.io.IOException
 import java.lang.reflect.Type
 import java.net.ProtocolException
 import java.util.*
-import kotlin.jvm.Throws
 
 internal class NetworkResponseCallAdapter<T : Any, U : Any>(
     private val delegateAdapter: CallAdapter<ResponseBody, Call<ResponseBody>>,
@@ -100,21 +99,23 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                             null
                         }
 
-                        if (success != null || !convertToErrorBodyWhenSuccessfulAndCannotParse) {
+                        if (success != null) {
                             return NetworkResponse.Success(success)
                         } else {
-                            try {
-                                val error = errorConverter.convert(body.toResponseBody())
-                                if (error != null) {
-                                    return NetworkResponse.ServerError(error, response.code())
+                            if (convertToErrorBodyWhenSuccessfulAndCannotParse) {
+                                try {
+                                    val error = errorConverter.convert(body.toResponseBody())
+                                    if (error != null) {
+                                        return NetworkResponse.ServerError(error, response.code())
+                                    }
+                                } catch (e: Exception) {
+                                    print(e)
                                 }
-                            } catch (e: Exception) {
-                                print(e)
                             }
                         }
                     }
 
-                    return NetworkResponse.Success(null)
+                    return NetworkResponse.ServerError(null, response.code())
                 }
                 else -> return errorBodyToNetworkResponse(response)
             }

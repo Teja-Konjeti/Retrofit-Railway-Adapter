@@ -18,7 +18,7 @@ sealed class NetworkResponse<out T : Any, out U : Any> {
     /**
      * A request that resulted in a successful response of type T.
      */
-    data class Success<T : Any>(val body: T?) : NetworkResponse<T, Nothing>()
+    data class Success<T : Any>(val body: T) : NetworkResponse<T, Nothing>()
 
     /**
      * A request that resulted in a response of type U.
