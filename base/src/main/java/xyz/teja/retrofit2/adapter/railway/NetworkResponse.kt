@@ -32,7 +32,7 @@ sealed class NetworkResponse<out T : Any, out U : Any> {
         NetworkResponse<Nothing, U>()
 
     /**
-     * A request that didn't result in a response.
+     * A request that didn't result in a response or some protocol error.
      */
     data class NetworkError(val error: Throwable) : NetworkResponse<Nothing, Nothing>()
 }

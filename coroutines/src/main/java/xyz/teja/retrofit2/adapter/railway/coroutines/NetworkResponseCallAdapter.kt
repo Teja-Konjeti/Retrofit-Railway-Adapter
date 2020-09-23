@@ -22,11 +22,9 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
     private val delegateAdapter: CallAdapter<ResponseBody, Call<ResponseBody>>,
     private val successConverter: Converter<ResponseBody, T>,
     private val errorConverter: Converter<ResponseBody, U>,
-    private val convertToErrorBodyWhenSuccessfulAndCannotParse: Boolean,
 ) : CallAdapter<ResponseBody, Call<NetworkResponse<T, U>>> {
     override fun adapt(call: Call<ResponseBody>): Call<NetworkResponse<T, U>> =
         CallbackCall(
-            convertToErrorBodyWhenSuccessfulAndCannotParse,
             delegateAdapter.adapt(call),
             successConverter,
             errorConverter,
@@ -35,7 +33,6 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
     override fun responseType(): Type = ResponseBody::class.java
 
     internal class CallbackCall<T : Any, U : Any>(
-        private val convertToErrorBodyWhenSuccessfulAndCannotParse: Boolean,
         private val delegate: Call<ResponseBody>,
         private val successConverter: Converter<ResponseBody, T>,
         private val errorConverter: Converter<ResponseBody, U>,
@@ -67,10 +64,7 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
 
         private fun success(response: Response<ResponseBody>): Response<NetworkResponse<T, U>> {
             return wrapNetworkResponseInResponse(
-                convertResponseToNetworkResponse(
-                    response,
-                    convertToErrorBodyWhenSuccessfulAndCannotParse
-                ),
+                convertResponseToNetworkResponse(response),
                 response
             )
         }
@@ -84,7 +78,6 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
 
         private fun convertResponseToNetworkResponse(
             response: Response<ResponseBody>,
-            convertToErrorBodyWhenSuccessfulAndCannotParse: Boolean,
         ): NetworkResponse<T, U> {
             when {
                 response.isSuccessful -> {
@@ -102,19 +95,17 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
                         if (success != null) {
                             return NetworkResponse.Success(success)
                         } else {
-                            if (convertToErrorBodyWhenSuccessfulAndCannotParse) {
-                                try {
-                                    val error = errorConverter.convert(body.toResponseBody())
-                                    if (error != null) {
-                                        return NetworkResponse.ServerError(
-                                            error,
-                                            response.raw(),
-                                            body
-                                        )
-                                    }
-                                } catch (e: Exception) {
-                                    print(e)
+                            try {
+                                val error = errorConverter.convert(body.toResponseBody())
+                                if (error != null) {
+                                    return NetworkResponse.ServerError(
+                                        error,
+                                        response.raw(),
+                                        body
+                                    )
                                 }
+                            } catch (e: Exception) {
+                                print(e)
                             }
                         }
                     }
@@ -213,7 +204,6 @@ internal class NetworkResponseCallAdapter<T : Any, U : Any>(
         }
 
         override fun clone(): Call<NetworkResponse<T, U>> = CallbackCall(
-            convertToErrorBodyWhenSuccessfulAndCannotParse,
             delegate.clone(),
             successConverter,
             errorConverter

@@ -26,7 +26,7 @@ import java.lang.reflect.Type
  * Note: This adapter must be registered before an adapter that is capable of adapting RxJava
  * streams.
  */
-class RailwayCoRoutinesAdapterFactory(private val convertToErrorBodyWhenSuccessfulAndCannotParse: Boolean = true) : CallAdapter.Factory() {
+class CoRoutinesRailwayAdapterFactory : CallAdapter.Factory() {
     override fun get(
         callReturnType: Type,
         annotations: Array<Annotation>,
@@ -77,7 +77,6 @@ class RailwayCoRoutinesAdapterFactory(private val convertToErrorBodyWhenSuccessf
             delegateAdapter as CallAdapter<ResponseBody, Call<ResponseBody>>,
             successBodyConverter,
             errorBodyConverter,
-            convertToErrorBodyWhenSuccessfulAndCannotParse
         )
     }
 }
