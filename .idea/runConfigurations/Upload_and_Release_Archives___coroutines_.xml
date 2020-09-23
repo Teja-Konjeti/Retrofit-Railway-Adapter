@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Upload Archives [:coroutines]" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Upload and Release Archives [:coroutines]" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
       <option name="executionName" />
-      <option name="externalProjectPath" value="$PROJECT_DIR$/coroutines" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$" />
       <option name="externalSystemIdString" value="GRADLE" />
       <option name="scriptParameters" value="" />
       <option name="taskDescriptions">
@@ -11,6 +11,7 @@
       <option name="taskNames">
         <list>
           <option value="uploadArchives" />
+          <option value="closeAndReleaseRepository" />
         </list>
       </option>
       <option name="vmOptions" value="" />

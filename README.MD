@@ -84,7 +84,7 @@ dependencies {
 ```
 
 > Kudos to [naturalwarren][naturalwarren] for the [idea][idea]. This implementation is completely different from his implementation.
-This library supports Co-Routines and also try to convert reponse body to error body when the response successful among many other use cases handled.
+This library supports Co-Routines and also try to convert reponse body to error body when the response is successful among many other use cases handled.
 You can find all of these usecases in the test suite of the coroutines module.
 
 > This library also has 85% test coverage from the JaCoCo test coverage report.
