@@ -50,7 +50,7 @@ class CoRoutinesRailwayAdapterTests : FreeSpec({
     val server = MockWebServer()
     val retrofit = Retrofit.Builder()
         .baseUrl(server.url("/"))
-        .addCallAdapterFactory(CoRoutinesRailwayAdapterFactory())
+        .addCallAdapterFactory(CoRoutinesRailwayAdapterFactory)
         .addConverterFactory(
             JacksonConverterFactory.create(
                 JsonMapper

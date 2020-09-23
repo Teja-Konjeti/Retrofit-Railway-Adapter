@@ -26,7 +26,7 @@ import java.lang.reflect.Type
  * Note: This adapter must be registered before an adapter that is capable of adapting RxJava
  * streams.
  */
-class CoRoutinesRailwayAdapterFactory : CallAdapter.Factory() {
+object CoRoutinesRailwayAdapterFactory : CallAdapter.Factory() {
     override fun get(
         callReturnType: Type,
         annotations: Array<Annotation>,

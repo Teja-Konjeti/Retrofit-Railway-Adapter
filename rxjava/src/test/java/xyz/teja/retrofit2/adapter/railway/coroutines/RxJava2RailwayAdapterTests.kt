@@ -50,7 +50,7 @@ class RxJava2RailwayAdapterTests : FreeSpec({
         .baseUrl(server.url("/"))
         .addCallAdapterFactory(RxJava2RailwayAdapterFactory)
         .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
-        .addCallAdapterFactory(CoRoutinesRailwayAdapterFactory())
+        .addCallAdapterFactory(CoRoutinesRailwayAdapterFactory)
         .addConverterFactory(
             JacksonConverterFactory.create(
                 JsonMapper
