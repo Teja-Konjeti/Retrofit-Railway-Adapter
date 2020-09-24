@@ -13,37 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package xyz.teja.retrofit2.adapter.railway;
+package xyz.teja.retrofit2.adapter.railway
 
 /**
  * A simple utility class used to check method Preconditions.
  *
  * <pre>
  * public long divideBy(long value) {
- *   Preconditions.checkArgument(value != 0);
- *   return this.value / value;
+ * Preconditions.checkArgument(value != 0);
+ * return this.value / value;
  * }
- * </pre>
+</pre> *
  *
  * @author Inderjeet Singh
  * @author Joel Leitch
  */
-public final class $Gson$Preconditions {
-  private $Gson$Preconditions() {
-    throw new UnsupportedOperationException();
-  }
+class GsonPreConditions private constructor() {
+    companion object {
+        @JvmStatic
+        fun <T> checkNotNull(obj: T?): T {
+            if (obj == null) {
+                throw NullPointerException()
+            }
+            return obj
+        }
 
-  public static <T> T checkNotNull(T obj) {
-    if (obj == null) {
-      throw new NullPointerException();
+        @JvmStatic
+        fun checkArgument(condition: Boolean) {
+            require(condition)
+        }
     }
-    return obj;
-  }
 
-  public static void checkArgument(boolean condition) {
-    if (!condition) {
-      throw new IllegalArgumentException();
+    init {
+        throw UnsupportedOperationException()
     }
-  }
 }

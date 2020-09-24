@@ -15,6 +15,7 @@ import okhttp3.Response
  * @param T success body type.
  * @param U error body type.
  */
+@Suppress("unused")
 sealed class NetworkResponse<out T : Any, out U : Any> {
 
     /**
