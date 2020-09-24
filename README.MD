@@ -1,11 +1,12 @@
-# Retrofit Railway Adapter
-![version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg) ![build success](https://img.shields.io/badge/build-success-brightgreen.svg) ![tests passed](https://img.shields.io/badge/tests-passed-brightgreen.svg)
+# Retrofit Railway Adapter (Co-Routines & RxJava 2)
+![build success](https://img.shields.io/badge/build-success-brightgreen.svg) ![Maven-Central](https://img.shields.io/badge/maven%20central-1.0.0-brightgreen.svg) ![code coverage](https://img.shields.io/badge/code%20coverage-85%25-brightgreen.svg)
 
 An Idiomatic way to parse different success and failure responses for implementing Railway Pattern on Retrofit 2
 ## Usage
 ```kotlin
+// Can be any class
 data class SuccessBody(val success: String)
-
+// Can be any class
 data class ErrorBody(val error: String)
 
 interface Service {
@@ -17,16 +18,15 @@ interface Service {
 
 This will parse to one of the following responses
 ```kotlin
-    // A request that resulted in a successful response of type T (SuccessBody in this example).
-    data class Success<T : Any>(val body: T) : NetworkResponse<T, Nothing>()
-    // A request that resulted in a response of type  (ErrorBody in this example).
-    data class ServerError<U : Any>(val body: U?, val response: Response, val rawBody: String) :
-        NetworkResponse<Nothing, U>()
-    // A request that didn't result in a response or some protocol error.
-    data class NetworkError(val error: Throwable) : NetworkResponse<Nothing, Nothing>()
+// A request that resulted in a successful response of type T (SuccessBody in this example).
+NetworkResponse.Success(val body: SuccessBody)
+// A request that resulted in a response of type  (ErrorBody in this example).
+NetworkResponse.ServerError(val body: ErrorBody?, val response: okhttp3.Response, val rawBody: String)
+// A request that didn't result in a response or some protocol error.
+NetworkResponse.NetworkError(val error: Throwable)
 ```
 
-> The complete use cases and parsing behaviour can be found in the test suite of the coroutines module.
+> The complete use cases and parsing behaviour can be found [here][Test-Suite]
 
 > Note: DO NOT use Gson as your Retrofit converter. Gson uses reflection and will ALWAYS parse into SuccessBody even when a property is non-nullable which causes run-time exceptions.
 
@@ -84,11 +84,10 @@ dependencies {
 ```
 
 > Kudos to [naturalwarren][naturalwarren] for the [idea][idea]. This implementation is completely different from his implementation.
-This library supports Co-Routines and also try to convert reponse body to error body when the response is successful among many other use cases handled.
-You can find all of these usecases in the test suite of the coroutines module.
+This library supports Co-Routines and also try to convert response body to error body when the response is successful among many other use cases handled.
+You can find all of these use cases in the test suite of the coroutines module.
 
-> This library also has 85% test coverage from the JaCoCo test coverage report.
-
+[Test-Suite]: https://github.com/Teja-Konjeti/Retrofit-Railway-Adapter/blob/master/coroutines/src/test/java/xyz/teja/retrofit2/adapter/railway/coroutines/CoRoutinesRailwayAdapterTests.kt
 [Jackson]: https://github.com/FasterXML/jackson-module-kotlin
 [Kotlinx.serialization]: https://github.com/JakeWharton/retrofit2-kotlinx-serialization-converter/issues
 [naturalwarren]: https://gist.github.com/naturalwarren/
